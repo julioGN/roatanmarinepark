@@ -1,34 +1,29 @@
-import nltk
-import os
-import datetime
-import json
-import itertools
 import copy
-import shutil
-import pandas as pd
-from nltk.corpus import stopwords
-from sklearn.metrics import log_loss, balanced_accuracy_score
-from sklearn.preprocessing import LabelEncoder
-from sklearn.model_selection import ParameterGrid
-from tensorflow.keras.backend import clear_session
-from tensorflow.keras.models import Sequential, load_model
-from tensorflow.keras.layers import Embedding, Flatten, Dense, Dropout
-from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
-from tensorflow.keras.preprocessing.text import Tokenizer
-from tensorflow.keras.preprocessing.sequence import pad_sequences
-import numpy as np
-from gensim.models.phrases import Phraser
-from nltk.tokenize import RegexpTokenizer
-import tensorflow
-from tensorflow.keras.datasets import imdb
-from tensorflow.keras.preprocessing.sequence import pad_sequences
-from tensorflow.keras.models import Model  # new!
-from tensorflow.keras.layers import Input, concatenate  # new!
-from tensorflow.keras.layers import Dense, Dropout, Embedding, SpatialDropout1D, Conv1D, GlobalMaxPooling1D
-from tensorflow.keras.callbacks import ModelCheckpoint
+import datetime
+import itertools
+import json
 import os
-from sklearn.metrics import roc_auc_score
-import matplotlib.pyplot as plt
+import shutil
+
+import nltk
+import numpy as np
+import pandas as pd
+from gensim.models.phrases import Phraser
+from nltk.corpus import stopwords
+from nltk.tokenize import RegexpTokenizer
+from sklearn.metrics import log_loss, balanced_accuracy_score
+from sklearn.model_selection import ParameterGrid
+from sklearn.preprocessing import LabelEncoder
+from tensorflow.keras.backend import clear_session
+from tensorflow.keras.callbacks import EarlyStopping
+from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.layers import Bidirectional
+from tensorflow.keras.layers import Dense, Dropout, Embedding, SpatialDropout1D, LSTM
+from tensorflow.keras.layers import Flatten
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.models import load_model
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.preprocessing.text import Tokenizer
 
 nltk.download('punkt')
 
@@ -296,61 +291,21 @@ def build_fn(name='dense', num_classes=3, optimizer=None, num_unique_words=5000,
     model = Sequential()
     model.add(Embedding(num_unique_words, embedded_dims, input_length=max_sequence_length))
 
-   # if name == 'dense':
-   #     model.add(Flatten())
-   #     model.add(Dense(num_dense, activation='relu'))
-   #     model.add(Dropout(dropout))
-   # else:
-   #     raise ValueError(f'Unknown model name: {name}')
+    # if name == 'dense':
+    #    model.add(Flatten())
+    #    model.add(Dense(num_dense, activation='relu'))
+    #    model.add(Dropout(dropout))
+    # else:
+    #    raise ValueError(f'Unknown model name: {name}')
 
-    # convolutional layer architecture:
-    n_conv_1 = n_conv_2 = n_conv_3 = 256
-    k_conv_1 = 3
-    k_conv_2 = 2
-    k_conv_3 = 4
-
-    input_layer = Input(shape=(max_sequence_length,),
-                        dtype='int16', name='input')
-
-    # embedding:
-    embedding_layer = Embedding(num_unique_words, embedded_dims,
-                                name='embedding')(input_layer)
-    drop_embed_layer = SpatialDropout1D(0.2,
-                                        name='drop_embed')(embedding_layer)
-
-    # three parallel convolutional streams:
-    conv_1 = Conv1D(n_conv_1, k_conv_1,
-                    activation='relu', name='conv_1')(drop_embed_layer)
-    maxp_1 = GlobalMaxPooling1D(name='maxp_1')(conv_1)
-
-    conv_2 = Conv1D(n_conv_2, k_conv_2,
-                    activation='relu', name='conv_2')(drop_embed_layer)
-    maxp_2 = GlobalMaxPooling1D(name='maxp_2')(conv_2)
-
-    conv_3 = Conv1D(n_conv_3, k_conv_3,
-                    activation='relu', name='conv_3')(drop_embed_layer)
-    maxp_3 = GlobalMaxPooling1D(name='maxp_3')(conv_3)
-
-    # concatenate the activations from the three streams:
-    concat = concatenate([maxp_1, maxp_2, maxp_3])
-
-    # dense hidden layers:
-    dense_layer = Dense(num_dense,
-                        activation='relu', name='dense')(concat)
-    drop_dense_layer = Dropout(dropout, name='drop_dense')(dense_layer)
-    dense_2 = Dense(int(num_dense / 4),
-                    activation='relu', name='dense_2')(drop_dense_layer)
-    dropout_2 = Dropout(dropout, name='drop_dense_2')(dense_2)
-
-    # sigmoid output layer:
-    predictions = Dense(1, activation='sigmoid', name='output')(dropout_2)
-    #  model.add(Dense(num_classes, activation='softmax'))
-
-    # create model:
-    model = Model(input_layer, predictions)
+    model.add(SpatialDropout1D(0.2))
+    model.add(Bidirectional(LSTM(64, dropout=0.2,
+                                 return_sequences=True)))
+    model.add(Bidirectional(LSTM(64, dropout=0.2)))
+    model.add(Dense(1, activation='sigmoid'))
 
     model.summary()
-    model.compile(loss='binary_crossentropy', optimizer=optimizer, weighted_metrics=['accuracy'])
+    model.compile(loss='binary_crossentropy', optimizer=optimizer, metrics=['accuracy'])
 
     return model
 
@@ -376,13 +331,13 @@ def main():
         'fit': ParameterGrid([
             {
                 'batch_size': [128],
-                'epochs': [4],
+                'epochs': [16],
             },
         ]),
         'model_preprocessor': ParameterGrid([
             {
                 'num_unique_words': [5000],
-                'max_sequence_length': [400],
+                'max_sequence_length': [100],
             },
         ]),
         'model': ParameterGrid([
