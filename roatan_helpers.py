@@ -19,6 +19,7 @@ from tensorflow.keras.preprocessing.sequence import pad_sequences
 import numpy as np
 from gensim.models.phrases import Phraser
 from nltk.tokenize import RegexpTokenizer
+from nltk.corpus import stopwords
 import tensorflow
 from tensorflow.keras.datasets import imdb
 from tensorflow.keras.preprocessing.sequence import pad_sequences
@@ -82,12 +83,12 @@ class Preprocessor:
 
         # lower_sents: lowercase words ignoring punctuation
         x = [[[
-            word.lower() for word in sentence if word.lower() not in list(string.punctuation)] for sentence in message
-        ] for message in x]
+            word.lower() for word in sentence if word.lower() not in list(string.punctuation)] for sentence in message]
+            for message in x]
 
         # stopwrds: remove stopwords and punctuation
-        x = [[[
-            stopwords.words('english') + list(string.punctuation)] for sentence in message] for message in x]
+        # x = [[[word for word in sentence if not word.lower() in stopwords.words('english')] for sentence in message]
+        #      for message in x]
 
         # clean_sents: replace common adjacent words with bigrams
         x = [[self.bigram[sentence] for sentence in message] for message in x]
@@ -277,11 +278,19 @@ def assemble_results(output_root):
     return all_params2, best_params
 
 
-def build_fn(name='dense', num_classes=3, optimizer=None, num_unique_words=5000, embedded_dims=64,
-             max_sequence_length=None, num_dense=None, dropout=None):
+def build_fn(name=None, num_classes=None, optimizer=None, num_unique_words=None, embedded_dims=None,
+             max_sequence_length=None, num_dense=None, dropout=None, spatial_dropout=None, n_conv_1=None,
+             n_conv_2=None, n_conv_3=None, k_conv_1=None, k_conv_2=None, k_conv_3=None):
     """
     Build and compile a model based on the input parameters.
 
+    :param spatial_dropout: The percent dropout in the convolutional layer.
+    :param k_conv_3: convolutional layer size.
+    :param k_conv_2: convolutional layer size.
+    :param k_conv_1: convolutional layer size.
+    :param n_conv_3: kernel size.
+    :param n_conv_2: kernel size.
+    :param n_conv_1: kernel size.
     :param name: name of the model.
     :param num_classes: number of outputs for the model.
     :param optimizer: string representation of the optimizer.
@@ -296,58 +305,95 @@ def build_fn(name='dense', num_classes=3, optimizer=None, num_unique_words=5000,
     model = Sequential()
     model.add(Embedding(num_unique_words, embedded_dims, input_length=max_sequence_length))
 
-    # if name == 'dense':
-    #    model.add(Flatten())
-    #    model.add(Dense(num_dense, activation='relu'))
-    #    model.add(Dropout(dropout))
-    # else:
-    #    raise ValueError(f'Unknown model name: {name}')
+    if name == 'dense':
+        model.add(Flatten())
+        model.add(Dense(num_dense, activation='relu'))
+        model.add(Dropout(dropout))
+    elif name == 'mcn':
+        # convolutional layer architecture:
 
-    # convolutional layer architecture:
-    n_conv_1 = n_conv_2 = n_conv_3 = 256
-    k_conv_1 = 3
-    k_conv_2 = 2
-    k_conv_3 = 4
+        input_layer = Input(shape=(max_sequence_length,),
+                            dtype='int16', name='input')
 
-    input_layer = Input(shape=(max_sequence_length,),
-                        dtype='int16', name='input')
+        # embedding:
+        embedding_layer = Embedding(num_unique_words, embedded_dims,
+                                    name='embedding')(input_layer)
+        drop_embed_layer = SpatialDropout1D(spatial_dropout,
+                                            name='drop_embed')(embedding_layer)
 
-    # embedding:
-    embedding_layer = Embedding(num_unique_words, embedded_dims,
-                                name='embedding')(input_layer)
-    drop_embed_layer = SpatialDropout1D(0.2,
-                                        name='drop_embed')(embedding_layer)
+        # three parallel convolutional streams:
+        conv_1 = Conv1D(n_conv_1, k_conv_1,
+                        activation='relu', name='conv_1')(drop_embed_layer)
+        maxp_1 = GlobalMaxPooling1D(name='maxp_1')(conv_1)
 
-    # three parallel convolutional streams:
-    conv_1 = Conv1D(n_conv_1, k_conv_1,
-                    activation='relu', name='conv_1')(drop_embed_layer)
-    maxp_1 = GlobalMaxPooling1D(name='maxp_1')(conv_1)
+        conv_2 = Conv1D(n_conv_2, k_conv_2,
+                        activation='relu', name='conv_2')(drop_embed_layer)
+        maxp_2 = GlobalMaxPooling1D(name='maxp_2')(conv_2)
 
-    conv_2 = Conv1D(n_conv_2, k_conv_2,
-                    activation='relu', name='conv_2')(drop_embed_layer)
-    maxp_2 = GlobalMaxPooling1D(name='maxp_2')(conv_2)
+        #  conv_3 = Conv1D(n_conv_3, k_conv_3,
+        #                  activation='relu', name='conv_3')(drop_embed_layer)
+        #  maxp_3 = GlobalMaxPooling1D(name='maxp_3')(conv_3)
 
-    conv_3 = Conv1D(n_conv_3, k_conv_3,
-                    activation='relu', name='conv_3')(drop_embed_layer)
-    maxp_3 = GlobalMaxPooling1D(name='maxp_3')(conv_3)
+        # concatenate the activations from the three streams:
+        concat = concatenate([maxp_1, maxp_2])
 
-    # concatenate the activations from the three streams:
-    concat = concatenate([maxp_1, maxp_2, maxp_3])
+        # dense hidden layers:
+        dense_layer = Dense(num_dense,
+                            activation='relu', name='dense')(concat)
+        drop_dense_layer = Dropout(dropout, name='drop_dense')(dense_layer)
+        dense_2 = Dense(int(num_dense / 2),
+                        activation='relu', name='dense_2')(drop_dense_layer)
+        dropout_2 = Dropout(dropout, name='drop_dense_2')(dense_2)
 
-    # dense hidden layers:
-    dense_layer = Dense(num_dense,
-                        activation='relu', name='dense')(concat)
-    drop_dense_layer = Dropout(dropout, name='drop_dense')(dense_layer)
-    dense_2 = Dense(int(num_dense / 4),
-                    activation='relu', name='dense_2')(drop_dense_layer)
-    dropout_2 = Dropout(dropout, name='drop_dense_2')(dense_2)
+        # sigmoid output layer:
+        predictions = Dense(3, activation='sigmoid', name='output')(dropout_2)
+        #  model.add(Dense(num_classes, activation='softmax'))
 
-    # sigmoid output layer:
-    predictions = Dense(3, activation='sigmoid', name='output')(dropout_2)
-    #  model.add(Dense(num_classes, activation='softmax'))
+        # create model:
+        model = Model(input_layer, predictions)
+    elif name == 'mcn_complex':
+        # convolutional layer architecture:
 
-    # create model:
-    model = Model(input_layer, predictions)
+        input_layer = Input(shape=(max_sequence_length,),
+                            dtype='int16', name='input')
+
+        # embedding:
+        embedding_layer = Embedding(num_unique_words, embedded_dims,
+                                    name='embedding')(input_layer)
+        drop_embed_layer = SpatialDropout1D(spatial_dropout,
+                                            name='drop_embed')(embedding_layer)
+
+        # three parallel convolutional streams:
+        conv_1 = Conv1D(n_conv_1, k_conv_1,
+                        activation='relu', name='conv_1')(drop_embed_layer)
+        maxp_1 = GlobalMaxPooling1D(name='maxp_1')(conv_1)
+
+        conv_2 = Conv1D(n_conv_2, k_conv_2,
+                        activation='relu', name='conv_2')(drop_embed_layer)
+        maxp_2 = GlobalMaxPooling1D(name='maxp_2')(conv_2)
+
+        conv_3 = Conv1D(n_conv_3, k_conv_3,
+                        activation='relu', name='conv_3')(drop_embed_layer)
+        maxp_3 = GlobalMaxPooling1D(name='maxp_3')(conv_3)
+
+        # concatenate the activations from the three streams:
+        concat = concatenate([maxp_1, maxp_2, maxp_3])
+
+        # dense hidden layers:
+        dense_layer = Dense(num_dense,
+                            activation='relu', name='dense')(concat)
+        drop_dense_layer = Dropout(dropout, name='drop_dense')(dense_layer)
+        dense_2 = Dense(int(num_dense / 2),
+                        activation='relu', name='dense_2')(drop_dense_layer)
+        dropout_2 = Dropout(dropout, name='drop_dense_2')(dense_2)
+
+        # sigmoid output layer:
+        predictions = Dense(3, activation='sigmoid', name='output')(dropout_2)
+
+        # create model:
+        model = Model(input_layer, predictions)
+    else:
+        raise ValueError(f'Unknown model name: {name}')
 
     model.summary()
     model.compile(loss='sparse_categorical_crossentropy', optimizer=optimizer, weighted_metrics=['accuracy'])
@@ -370,34 +416,42 @@ def main():
     param_grids = {
         'early_stopping': ParameterGrid([
             {
-                'patience': [20]
+                'patience': [15, 30]
             },
         ]),
         'fit': ParameterGrid([
             {
-                'batch_size': [128],
-                'epochs': [16],
+                'batch_size': [128, 256],
+                'epochs': [20, 40],
             },
         ]),
         'model_preprocessor': ParameterGrid([
             {
-                'num_unique_words': [5000],
-                'max_sequence_length': [100],
+                'num_unique_words': [5000, 6000],
+                'max_sequence_length': [100, 150],
             },
         ]),
         'model': ParameterGrid([
             {
-                'name': ['dense'],
-                'embedded_dims': [64],
-                'num_dense': [256],
-                'dropout': [0.2],
-                'optimizer': ['nadam'],
+                'name': ['mcn', 'mcn_complex'],
+                'embedded_dims': [64, 128],
+                'num_dense': [64, 128],
+                'dropout': [0.5, 0.2],
+                'spatial_dropout': [0.2, 0.2],
+                'n_conv_1': [64, 128],
+                'n_conv_2': [64, 128],
+                'n_conv_3': [64, 128],
+                'k_conv_1': [3, 3],
+                'k_conv_2': [2, 3],
+                'k_conv_3': [4, 3],
+                'optimizer': ['adam', 'nadam'],
             },
         ]),
         'preprocessor': ParameterGrid([
             {
-                'pad_type': ['pre'],
+                'pad_type': ['post'],
                 'trunc_type': ['pre'],
+                'do_clean': [True]
             },
         ])
     }
