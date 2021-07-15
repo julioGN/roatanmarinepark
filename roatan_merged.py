@@ -31,6 +31,8 @@ from nltk.stem.porter import PorterStemmer
 nltk.download('stopwords')
 nltk.download('punkt')
 
+CHECK_ONLY = True
+
 
 def check_preprocessor_arguments(kwargs):
     for k in ['num_unique_words', 'max_sequence_length']:
@@ -448,7 +450,8 @@ def build_fn(name=None, num_classes=None,
     :return: a Keras model ready to be fit on data with these dimensions.
     """
     check_model_arguments(locals())
-    # return None
+    if CHECK_ONLY:
+        return None
     clear_session()
     if 'multi_conv' not in name:
         model = Sequential(name=name)
@@ -593,6 +596,7 @@ def build_fn(name=None, num_classes=None,
     return model
 
 
+# noinspection PyTypeChecker
 def main():
     """
     Example of how to set up a grid search.
@@ -600,7 +604,7 @@ def main():
     :return: None
     """
     target = 'Coding:Level1'
-    output_root = f'problem_5_output/{target}'
+    output_root = f'problem_5_output/{target.replace(":", "_")}'
     if not os.path.exists(output_root):
         os.makedirs(output_root, exist_ok=True)
 
@@ -760,11 +764,11 @@ def main():
             },
         ]),
         'preprocessor': ParameterGrid([
-            {
-                'do_clean': [False],
-                'pad_type': ['pre', 'post'],
-                'trunc_type': ['pre', 'post'],
-            },
+            # {
+            #     'do_clean': [False],
+            #     'pad_type': ['pre', 'post'],
+            #     'trunc_type': ['pre', 'post'],
+            # },
             {
                 'do_clean': [True],
                 'pad_type': ['pre', 'post'],
@@ -788,18 +792,26 @@ def main():
 
     num_models = prod([len(pg) for pg in param_grids.values()])
 
-    param_grid_names = list(param_grids.keys())
+    param_grid_names = sorted(list(param_grids.keys()))
     param_grid_list = [param_grids[k] for k in param_grid_names]
 
     all_params, best_params = assemble_results(output_root)
 
+    if CHECK_ONLY:
+        for i, params in enumerate(itertools.product(*param_grid_list[3:5])):
+            params = {k: v for k, v in zip(param_grid_names[3:5], params)}
+            print(i, params)
+            Preprocessor(**params['preprocessor'], **params['model_preprocessor'])
+
+        for i, params in enumerate(itertools.product(*param_grid_list[2:4])):
+            params = {k: v for k, v in zip(param_grid_names[2:4], params)}
+            print(i, params)
+            build_fn(num_classes=3, **params['model'], **params['model_preprocessor'])
+        return
+
     for i, params in enumerate(itertools.product(*param_grid_list)):
         params = {k: v for k, v in zip(param_grid_names, params)}
         print(f'\n{i + 1}/{num_models}: {params}\n')
-
-        # build and compile model (debugging)
-        # model = build_fn(num_classes=3, **params['model'], **params['model_preprocessor'])
-        # continue
 
         if params in all_params:
             # skip this one because we already ran it.
