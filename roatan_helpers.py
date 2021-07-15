@@ -302,10 +302,11 @@ def build_fn(name=None, num_classes=None, optimizer=None, num_unique_words=None,
     :return: a Keras model ready to be fit on data with these dimensions.
     """
     clear_session()
-    model = Sequential()
-    model.add(Embedding(num_unique_words, embedded_dims, input_length=max_sequence_length))
+
 
     if name == 'dense':
+        model = Sequential()
+        model.add(Embedding(num_unique_words, embedded_dims, input_length=max_sequence_length))
         model.add(Flatten())
         model.add(Dense(num_dense, activation='relu'))
         model.add(Dropout(dropout))
@@ -346,7 +347,7 @@ def build_fn(name=None, num_classes=None, optimizer=None, num_unique_words=None,
         dropout_2 = Dropout(dropout, name='drop_dense_2')(dense_2)
 
         # sigmoid output layer:
-        predictions = Dense(3, activation='sigmoid', name='output')(dropout_2)
+        predictions = Dense(3, activation='softmax', name='output')(dropout_2)
         #  model.add(Dense(num_classes, activation='softmax'))
 
         # create model:
@@ -388,7 +389,7 @@ def build_fn(name=None, num_classes=None, optimizer=None, num_unique_words=None,
         dropout_2 = Dropout(dropout, name='drop_dense_2')(dense_2)
 
         # sigmoid output layer:
-        predictions = Dense(3, activation='sigmoid', name='output')(dropout_2)
+        predictions = Dense(3, activation='softmax', name='output')(dropout_2)
 
         # create model:
         model = Model(input_layer, predictions)
