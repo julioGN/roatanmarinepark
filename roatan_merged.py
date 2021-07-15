@@ -772,6 +772,11 @@ def main():
                 'omit_stopwords': [True, False],
                 'ignore_urls': [True, False],
                 'fix_contractions': [True, False],
+                'stem': [True, False],
+                'remove_foreign_characters': [True],  # , False],
+                'lower': [True],  # , False],
+                'remove_punctuation': [True],  # , False],
+                'bigrams': [True],  # , False]
             },
         ])
     }
