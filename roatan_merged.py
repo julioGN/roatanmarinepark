@@ -31,7 +31,7 @@ from nltk.stem.porter import PorterStemmer
 nltk.download('stopwords')
 nltk.download('punkt')
 
-CHECK_ONLY = True
+CHECK_ONLY = False
 
 
 def check_preprocessor_arguments(kwargs):
@@ -263,7 +263,7 @@ def get_xy(preprocessor, target='Coding:Level1'):
             list of names: ['train', 'valid']
     """
     set_names = ['train', 'valid']
-    dfs = [pd.read_csv(f'roatan_{s}.csv') for s in set_names]
+    dfs = [pd.read_csv(f'data/roatan_{s}.csv') for s in set_names]
 
     # fit preprocessor with training set
     preprocessor.fit(dfs[0]['message'])
@@ -612,156 +612,156 @@ def main():
     param_grids = {
         'early_stopping': ParameterGrid([
             {
-                'patience': [5],  # , 20, 40]
+                'patience': [15],  # , 20, 40]
             },
         ]),
         'fit': ParameterGrid([
             {
-                'batch_size': [32, 64, 128, 256],
-                'epochs': [5, 20, 50],
+                'batch_size': [128],  # , 64, 128, 256],
+                'epochs': [16],  # 20, 50],
             },
         ]),
         'model_preprocessor': ParameterGrid([
             {
-                'num_unique_words': [1000, 4000, 5000, 6000, 10000],
-                'max_sequence_length': [5, 50, 75, 100, 125, 150, 200],
+                'num_unique_words': [5000],  # , 4000, 5000, 6000, 10000],
+                'max_sequence_length': [150],  # 50, 75, 100, 125, 150, 200],
             },
         ]),
         'model': ParameterGrid([
-            {
-                # Dense single hidden layer model hyperparameters:
-                'name': ['dense_h1'],
-                'embedded_dims': [8],  # , 16, 32, 64, 128, 256],
-                'num_units_h1': [8],  # , 16, 32, 64, 128, 256],
-                'drop_h1': [None],  # , 0.1, 0.2, 0.25, 0.5, 0.75],
-                'optimizer': ['nadam', 'adam'],
-                'learning_rate': [None],  # , 0.01, 0.001],
-                'activation': ['relu', 'tanh'],
-            },
-            {
-                # Dense double hidden layer model hyperparameters:
-                'name': ['dense_h2'],
-                'embedded_dims': [64],
-                'num_units_h1': [128],
-                'num_units_h2': [128],
-                'drop_h1': [None],
-                'drop_h2': [0.5],
-                'optimizer': ['nadam'],
-                'activation': ['relu'],
-                'learning_rate': [0.01],
-            },
-            {
-                # CNN single hidden layer model hyperparameters
-                'name': ['conv_h1'],
-                'embedded_dims': [64],
-                'num_units_h1': [32],  # , 64, 256],
-                'k_conv_h1': [2],  # , 3, 4],
-                'drop_embed': [0.2],  # , 0.5],
-                'activation': ['relu', 'tanh'],
-                'optimizer': ['adam', 'nadam']
-            },
-            {
-                # CNN double hidden layer model hyperparameters
-                'name': ['conv_h2'],
-                'embedded_dims': [128],  # , 64, 32, 16, 8],
-                'num_units_h1': [32],  # , 64, 128],
-                'drop_h2': [0.5],  # , 0.75, 0.25, 0.1],
-                'k_conv_h1': [2],  # , 3, 4],
-                'num_units_h2': [128],  # , 64, 32, 16, 8],
-                'drop_embed': [0.2],  # , 0.50],
-                'activation': ['relu'],
-                'optimizer': ['adam'],  # , 'nadam'],
-            },
-            {
-                # CNN double hidden layer model hyperparameters
-                'name': ['conv_h2.1'],
-                'embedded_dims': [64],
-                'num_units_h1': [32],  # , 64, 128],
-                'k_conv_h1': [2],  # , 3, 4],
-                'drop_embed': [0.2],  # , 0.5],
-                'activation': ['relu'],
-                'optimizer': ['adam'],  # , 'nadam']
-            },
-            {
-                # RNN single hidden layer model hyperparameters
-                'name': ['rnn_h1'],
-                'embedded_dims': [64],
-                'drop_embed': [0.2],
-                'num_units_h1': [128],
-                'optimizer': ['nadam'],
-                'learning_rate': [0.01]
-            },
-            {
-                # LSTM double hidden layer (second layer dense FC) model hyperparameters
-                'name': ['lstm_h1'],
-                'embedded_dims': [64],
-                'drop_embed': [0.2],
-                'drop_h1': [0.5],
-                'num_units_h1': [128],
-                'optimizer': ['nadam'],
-            },
-            {
-                # LSTM double hidden layer (second layer dense FC) model hyperparameters
-                'name': ['lstm_h2'],
-                'embedded_dims': [64],
-                'drop_embed': [0.2],
-                'num_units_h1': [128],
-                'drop_h1': [0.5],
-                'num_units_h2': [128],
-                'optimizer': ['nadam'],
-                'activation': ['relu']
-            },
-            {
-                # Bi-directional LSTM single hidden layer model hyperparameters
-                'name': ['bi_lstm_h1'],
-                'embedded_dims': [32],  # , 64, 128],
-                'drop_embed': [0.2],  # , 0.25, 0.5],
-                'num_units_h1': [32],  # , 64, 128],
-                'drop_h1': [0.2],  # , 0.25, 0.5],
-                'optimizer': ['nadam', 'adam']
-            },
-            {
-                # Bi-directional LSTM double hidden layer (second layer Bi-LSTM) model hyperparameters
-                'name': ['bi_lstm_h2'],
-                'embedded_dims': [32],  # , 64, 128],
-                'num_units_h1': [32],  # , 64, 128],
-                'num_units_h2': [32],  # , 64, 128],
-                'drop_h1': [0.25, 0.5],
-                'drop_h2': [0.25, 0.5],
-                'optimizer': ['nadam', 'adam']
-            },
+            # {
+            #    # Dense single hidden layer model hyperparameters:
+            #    'name': ['dense_h1'],
+            #    'embedded_dims': [8],  # , 16, 32, 64, 128, 256],
+            #    'num_units_h1': [8],  # , 16, 32, 64, 128, 256],
+            #    'drop_h1': [None],  # , 0.1, 0.2, 0.25, 0.5, 0.75],
+            #    'optimizer': ['nadam', 'adam'],
+            #    'learning_rate': [None],  # , 0.01, 0.001],
+            #    'activation': ['relu', 'tanh'],
+            # },
+            # {
+            #    # Dense double hidden layer model hyperparameters:
+            #    'name': ['dense_h2'],
+            #    'embedded_dims': [64],
+            #    'num_units_h1': [128],
+            #    'num_units_h2': [128],
+            #    'drop_h1': [None],
+            #    'drop_h2': [0.5],
+            #    'optimizer': ['nadam'],
+            #    'activation': ['relu'],
+            #    'learning_rate': [0.01],
+            # },
+            # {
+            #    # CNN single hidden layer model hyperparameters
+            #    'name': ['conv_h1'],
+            #    'embedded_dims': [64],
+            #    'num_units_h1': [32],  # , 64, 256],
+            #    'k_conv_h1': [2],  # , 3, 4],
+            #    'drop_embed': [0.2],  # , 0.5],
+            #    'activation': ['relu', 'tanh'],
+            #    'optimizer': ['adam', 'nadam']
+            # },
+            # {
+            #    # CNN double hidden layer model hyperparameters
+            #    'name': ['conv_h2'],
+            #    'embedded_dims': [128],  # , 64, 32, 16, 8],
+            #    'num_units_h1': [32],  # , 64, 128],
+            #    'drop_h2': [0.5],  # , 0.75, 0.25, 0.1],
+            #    'k_conv_h1': [2],  # , 3, 4],
+            #    'num_units_h2': [128],  # , 64, 32, 16, 8],
+            #    'drop_embed': [0.2],  # , 0.50],
+            #    'activation': ['relu'],
+            #    'optimizer': ['adam'],  # , 'nadam'],
+            # },
+            # {
+            #    # CNN double hidden layer model hyperparameters
+            #    'name': ['conv_h2.1'],
+            #    'embedded_dims': [64],
+            #    'num_units_h1': [32],  # , 64, 128],
+            #    'k_conv_h1': [2],  # , 3, 4],
+            #    'drop_embed': [0.2],  # , 0.5],
+            #    'activation': ['relu'],
+            #    'optimizer': ['adam'],  # , 'nadam']
+            # },
+            # {
+            #    # RNN single hidden layer model hyperparameters
+            #    'name': ['rnn_h1'],
+            #    'embedded_dims': [64],
+            #    'drop_embed': [0.2],
+            #    'num_units_h1': [128],
+            #   'optimizer': ['nadam'],
+            #    'learning_rate': [0.01]
+            # },
+            # {
+            #    # LSTM double hidden layer (second layer dense FC) model hyperparameters
+            #    'name': ['lstm_h1'],
+            #    'embedded_dims': [64],
+            #    'drop_embed': [0.2],
+            #    'drop_h1': [0.5],
+            #    'num_units_h1': [128],
+            #    'optimizer': ['nadam'],
+            # },
+            # {
+            #    # LSTM double hidden layer (second layer dense FC) model hyperparameters
+            #    'name': ['lstm_h2'],
+            #    'embedded_dims': [64],
+            #    'drop_embed': [0.2],
+            #    'num_units_h1': [128],
+            #    'drop_h1': [0.5],
+            #    'num_units_h2': [128],
+            #    'optimizer': ['nadam'],
+            #    'activation': ['relu']
+            # },
+            # {
+            #    # Bi-directional LSTM single hidden layer model hyperparameters
+            #    'name': ['bi_lstm_h1'],
+            #    'embedded_dims': [32],  # , 64, 128],
+            #    'drop_embed': [0.2],  # , 0.25, 0.5],
+            #    'num_units_h1': [32],  # , 64, 128],
+            #    'drop_h1': [0.2],  # , 0.25, 0.5],
+            #    'optimizer': ['nadam', 'adam']
+            # },
+            # {
+            #    # Bi-directional LSTM double hidden layer (second layer Bi-LSTM) model hyperparameters
+            #    'name': ['bi_lstm_h2'],
+            #    'embedded_dims': [32],  # , 64, 128],
+            #    'num_units_h1': [32],  # , 64, 128],
+            #    'num_units_h2': [32],  # , 64, 128],
+            #    'drop_h1': [0.25, 0.5],
+            #    'drop_h2': [0.25, 0.5],
+            #    'optimizer': ['nadam', 'adam']
+            # },
             {
                 # Multi Convolutional model hyperparameters
                 'name': ['multi_conv_h3_s2'],
                 'drop_embed': [0.5],  # , 0.3],
-                'embedded_dims': [32],  # , 64, 128, 256],
-                'num_units_h1': [32],  # , 64, 128, 256],
-                'num_units_h2': [32],  # , 64, 128, 256],
-                'num_units_h3': [32],  # , 64, 128, 256],
-                'num_units_h4': [32],  # , 64, 128, 256],
+                'embedded_dims': [128],  # , 64, 128, 256],
+                'num_units_h1': [128],  # , 64, 128, 256],
+                'num_units_h2': [128],  # , 64, 128, 256],
+                'num_units_h3': [128],  # , 64, 128, 256],
+                'num_units_h4': [128],  # , 64, 128, 256],
                 'k_conv_h1': [3],
                 'k_conv_h2': [2],
-                'activation': ['relu', 'tanh'],
-                'drop_h3': [0.1],  # , 0.2, 0.25, 0.5, 0.75],
-                'optimizer': ['adam', 'nadam']
+                'activation': ['relu'],  # 'tanh'],
+                'drop_h3': [0.2],  # , 0.2, 0.25, 0.5, 0.75],
+                'optimizer': ['adam']  # , 'nadam']
             },
-            {
-                # Multi Convolutional model hyperparameters
-                'name': ['multi_conv_h3_s3'],
-                'drop_embed': [0.5],  # , 0.3],
-                'embedded_dims': [32],  # , 64, 128, 256],
-                'num_units_h1': [32],  # , 64, 128, 256],
-                'num_units_h2': [32],  # , 64, 128, 256],
-                'num_units_h3': [32],  # , 64, 128, 256],
-                'num_units_h4': [32],  # , 64, 128, 256],
-                'k_conv_h1': [3],
-                'k_conv_h2': [2],
-                'k_conv_h3': [4],
-                'k_conv_h4': [4],
-                'activation': ['relu', 'tanh'],
-                'drop_h4': [0.1],  # , 0.2, 0.25, 0.5, 0.75],
-                'optimizer': ['adam', 'nadam']
-            },
+            # {
+            #    # Multi Convolutional model hyperparameters
+            #    'name': ['multi_conv_h3_s3'],
+            #    'drop_embed': [0.5],  # , 0.3],
+            #    'embedded_dims': [32],  # , 64, 128, 256],
+            #    'num_units_h1': [32],  # , 64, 128, 256],
+            #    'num_units_h2': [32],  # , 64, 128, 256],
+            #    'num_units_h3': [32],  # , 64, 128, 256],
+            #    'num_units_h4': [32],  # , 64, 128, 256],
+            #    'k_conv_h1': [3],
+            #    'k_conv_h2': [2],
+            #    'k_conv_h3': [4],
+            #    'k_conv_h4': [4],
+            #    'activation': ['relu', 'tanh'],
+            #    'drop_h4': [0.1],  # , 0.2, 0.25, 0.5, 0.75],
+            #    'optimizer': ['adam', 'nadam']
+            # },
         ]),
         'preprocessor': ParameterGrid([
             # {
@@ -771,13 +771,13 @@ def main():
             # },
             {
                 'do_clean': [True],
-                'pad_type': ['pre', 'post'],
-                'trunc_type': ['pre', 'post'],
-                'omit_stopwords': [True, False],
-                'ignore_urls': [True, False],
-                'fix_contractions': [True, False],
-                'stem': [True, False],
-                'remove_foreign_characters': [True],  # , False],
+                'pad_type': ['post'],  # , 'post'],
+                'trunc_type': ['post'],  # , 'post'],
+                'omit_stopwords': [False],  # , False],
+                'ignore_urls': [False],  # False],
+                'fix_contractions': [True],  # , False],
+                'stem': [True],  # False],
+                'remove_foreign_characters': [False],  # , False],
                 'lower': [True],  # , False],
                 'remove_punctuation': [True],  # , False],
                 'bigrams': [True],  # , False]
